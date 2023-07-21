@@ -45,7 +45,7 @@ jobs:
       run: dotnet build --configuration Release --no-restore
 
     - name: dotnet publish
-      run: dotnet publish -c Release myapp
+      run: dotnet publish -c Release -o myapp
     - name: Upload artifact for deployment job
       uses: actions/upload-artifact@v2
       with:
