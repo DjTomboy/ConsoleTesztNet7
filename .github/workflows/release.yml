@@ -1,23 +1,45 @@
-name: Release # Workflow name displayed on GitHub 
-on: 
-  workflow_dispatch: # Trigger manually 
-   branches: master # Branch on which the workflow will run 
-jobs: 
-   new-release: 
-      runs-on: ubuntu-latest 
-      steps: 
-         - uses: actions/checkout@v3 # Checkout our working repository 
-         - name: Conventional Changelog Action
-             id: changelog 
-             uses: TriPSs/conventional-changelog-action@v3 
-             with: 
-                 github-token: ${{ secrets.github_token } 
-                 output-file: "false" 
-        - name: Create Release # This action will create the actual release 
-             uses: actions/create-release@v1 
-             if: ${{ steps.changelog.outputs.skipped == 'false' } 
-             env: 
-                GITHUB_TOKEN: ${{ secrets.github_token } 
-                with: tag_name: ${{ steps.changelog.outputs.tag } 
-                release_name: ${{ steps.changelog.outputs.tag } 
-                body: ${{ steps.changelog.outputs.clean_changelog }
+name: .NET Core
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 7.0.306
+    - name: Install dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    - name: Zip the Build
+      run: zip -r ${{ secrets.ReleaseZipName }} ./AppName/bin/Release/netcoreapp7/ 
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.run_number }}
+        release_name: Release ${{ github.ref }}
+        body: New Release.
+        draft: false
+        prerelease: false
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: ./${{ secrets.ReleaseZipName }}.zip
+        asset_name: ${{ secrets.ReleaseZipName }}.zip
+        asset_content_type: application/zip
